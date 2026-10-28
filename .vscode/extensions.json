@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "innoverio.vscode-dbt-power-user",
+    "snowflake.snowflake-vsc",
+    "dorzey.vscode-sqlfluff",
+    "redhat.vscode-yaml",
+    "ms-python.python"
+  ]
+}

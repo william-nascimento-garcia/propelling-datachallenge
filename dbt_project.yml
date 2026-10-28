@@ -1,0 +1,66 @@
+name: tpch_medallion
+version: "1.0.0"
+config-version: 2
+require-dbt-version: [">=1.10.0", "<2.0.0"]
+
+profile: tpch_medallion
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - target
+  - dbt_packages
+
+vars:
+  # Calendar range for dim_date. TPC-H order dates span 1992-01-01..1998-08-02
+  # and receipt dates can go a few months beyond that.
+  dim_date_start: "1992-01-01"
+  dim_date_end: "1999-12-31"
+  # Bronze lands every source row twice to simulate a source re-sending data,
+  # proving that Silver deduplication works (macros/bronze_ingest.sql).
+  # Set to false (or --vars "{simulate_duplicates: false}") for a clean 1:1 copy.
+  simulate_duplicates: true
+
+# Run log: every build/run/test writes its results to <database>.AUDIT.DBT_RUN_RESULTS
+# (macros/log_run_results.sql).
+on-run-end:
+  - "{{ log_run_results(results) }}"
+
+models:
+  tpch_medallion:
+    +persist_docs:
+      relation: true
+      columns: true
+
+    bronze:
+      +schema: bronze
+      +materialized: table
+      +tags: ["bronze"]
+
+    silver:
+      +schema: silver
+      +materialized: table
+      +tags: ["silver"]
+
+    gold:
+      +schema: gold
+      +materialized: table
+      +tags: ["gold"]
+      +contract:
+        enforced: true
+      +grants:
+        select: ["REPORTER"]
+
+data_tests:
+  tpch_medallion:
+    # Default: a failing test blocks everything downstream.
+    # Silver and Gold use it: after deduplication a duplicate or null key means a bug.
+    +severity: error
+    +store_failures: false
+    # Bronze (and the source tests declared in models/bronze/) only observe:
+    # bad source data is reported as a warning and handled by Silver.
+    bronze:
+      +severity: warn

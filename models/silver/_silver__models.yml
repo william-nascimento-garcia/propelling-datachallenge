@@ -1,0 +1,330 @@
+version: 2
+
+# Silver = cleansed & conformed. Business-meaningful names, explicit types,
+# decoded codes, split composite attributes, reusable business measures.
+# Use-case agnostic: any future Gold mart can build on these models.
+#
+# Guarantees enforced on every run:
+#   * one row per business key  -> macros/deduplicate.sql + unique tests below
+#   * keys are strings, numbers are NUMBER(p,s) -> model contracts (data_type)
+
+models:
+  - name: slv_geography
+    description: Conformed nation -> region hierarchy, shared by customers and suppliers.
+    columns:
+      - name: nation_id
+        data_type: varchar
+        description: Nation business key (TPC-H N_NATIONKEY).
+        data_tests:
+          - unique
+          - not_null
+      - name: nation_name
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: region_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: region_name
+        data_type: varchar
+    config:
+      contract:
+        enforced: true
+  - name: slv_customer
+    description: Cleansed customers.
+    columns:
+      - name: customer_id
+        data_type: varchar
+        description: Customer business key (TPC-H C_CUSTKEY).
+        data_tests:
+          - unique
+          - not_null
+      - name: nation_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: customer_name
+        data_type: varchar
+      - name: customer_address
+        data_type: varchar
+      - name: phone
+        data_type: varchar
+      - name: phone_country_code
+        data_type: number(38,0)
+        description: Country dialing prefix extracted from the phone number.
+      - name: market_segment
+        data_type: varchar
+      - name: account_balance
+        data_type: number(12,2)
+        description: Customer account balance. Can be negative (customer owes money).
+      - name: has_negative_balance
+        data_type: boolean
+        description: True when the account balance is below zero.
+      - name: _loaded_at
+        data_type: timestamp_ntz
+        description: Timestamp the source row was landed in Bronze (used to pick the latest version when deduplicating).
+    config:
+      contract:
+        enforced: true
+  - name: slv_supplier
+    description: Cleansed suppliers.
+    columns:
+      - name: supplier_id
+        data_type: varchar
+        description: Supplier business key (TPC-H S_SUPPKEY).
+        data_tests:
+          - unique
+          - not_null
+      - name: nation_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: supplier_name
+        data_type: varchar
+      - name: supplier_address
+        data_type: varchar
+      - name: phone
+        data_type: varchar
+      - name: phone_country_code
+        data_type: number(38,0)
+      - name: account_balance
+        data_type: number(12,2)
+      - name: has_negative_balance
+        data_type: boolean
+      - name: _loaded_at
+        data_type: timestamp_ntz
+        description: Timestamp the source row was landed in Bronze (used to pick the latest version when deduplicating).
+    config:
+      contract:
+        enforced: true
+  - name: slv_part
+    description: Cleansed parts, with P_TYPE and P_CONTAINER split into atomic attributes.
+    columns:
+      - name: part_id
+        data_type: varchar
+        description: Part business key (TPC-H P_PARTKEY).
+        data_tests:
+          - unique
+          - not_null
+      - name: part_name
+        data_type: varchar
+      - name: manufacturer
+        data_type: varchar
+      - name: brand
+        data_type: varchar
+      - name: part_type
+        data_type: varchar
+      - name: part_class
+        data_type: varchar
+        description: First word of P_TYPE (e.g. Standard, Promo, Economy).
+        data_tests:
+          - not_null
+      - name: part_finish
+        data_type: varchar
+        description: Second word of P_TYPE (e.g. Polished, Brushed, Anodized).
+        data_tests:
+          - not_null
+      - name: part_material
+        data_type: varchar
+        description: Third word of P_TYPE (e.g. Tin, Steel, Copper).
+        data_tests:
+          - not_null
+      - name: part_size
+        data_type: number(38,0)
+      - name: container
+        data_type: varchar
+      - name: container_size
+        data_type: varchar
+      - name: container_type
+        data_type: varchar
+      - name: retail_price
+        data_type: number(12,2)
+        data_tests:
+          - is_positive
+      - name: _loaded_at
+        data_type: timestamp_ntz
+        description: Timestamp the source row was landed in Bronze (used to pick the latest version when deduplicating).
+    config:
+      contract:
+        enforced: true
+  - name: slv_partsupp
+    description: Supplier offer per part, including the unit supply cost used for margin.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - part_id
+              - supplier_id
+    columns:
+      - name: part_supplier_id
+        data_type: varchar
+        description: Surrogate key of (part_id, supplier_id).
+        data_tests:
+          - unique
+          - not_null
+      - name: part_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: supplier_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: available_quantity
+        data_type: number(38,0)
+        data_tests:
+          - is_positive:
+              arguments:
+                allow_zero: true
+      - name: supply_cost
+        data_type: number(12,2)
+        description: Unit cost the supplier charges for this part.
+        data_tests:
+          - is_positive
+      - name: _loaded_at
+        data_type: timestamp_ntz
+        description: Timestamp the source row was landed in Bronze (used to pick the latest version when deduplicating).
+    config:
+      contract:
+        enforced: true
+  - name: slv_orders
+    description: Cleansed order headers with decoded status and priority.
+    columns:
+      - name: order_id
+        data_type: varchar
+        description: Order business key (TPC-H O_ORDERKEY).
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: clerk_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: order_status
+        data_type: varchar
+        description: F = Fulfilled (all lines shipped), O = Open, P = Partially fulfilled.
+      - name: order_date
+        data_type: date
+        data_tests:
+          - not_null
+      - name: order_priority_rank
+        data_type: number(38,0)
+        description: Numeric priority, 1 (Urgent) to 5 (Low).
+      - name: order_priority
+        data_type: varchar
+        description: Priority label (Urgent, High, Medium, Not Specified, Low).
+      - name: ship_priority
+        data_type: number(38,0)
+      - name: order_total_price
+        data_type: number(12,2)
+      - name: _loaded_at
+        data_type: timestamp_ntz
+        description: Timestamp the source row was landed in Bronze (used to pick the latest version when deduplicating).
+    config:
+      contract:
+        enforced: true
+  - name: slv_lineitem
+    description: 'Cleansed order lines. Holds the reusable revenue rules (net_amount, discount_amount, gross_amount_with_tax)
+      and delivery KPIs.
+
+      '
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - order_id
+              - line_number
+    columns:
+      - name: order_line_id
+        data_type: varchar
+        description: Surrogate key of (order_id, line_number).
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: part_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: supplier_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: line_number
+        data_type: number(38,0)
+        data_tests:
+          - not_null
+      - name: quantity
+        data_type: number(12,2)
+        data_tests:
+          - is_positive
+      - name: extended_price
+        data_type: number(12,2)
+        description: Quantity x part retail price, before discount.
+        data_tests:
+          - is_positive
+      - name: discount_rate
+        data_type: number(5,4)
+      - name: tax_rate
+        data_type: number(5,4)
+      - name: net_amount
+        data_type: number(14,2)
+        description: Revenue of the line = extended_price x (1 - discount_rate). Excludes tax.
+        data_tests:
+          - is_positive
+      - name: discount_amount
+        data_type: number(14,2)
+        description: Revenue given away as discount = extended_price - net_amount.
+      - name: gross_amount_with_tax
+        data_type: number(14,2)
+        description: Amount invoiced = net_amount x (1 + tax_rate).
+      - name: return_status
+        data_type: varchar
+        description: 'TPC-H L_RETURNFLAG. R = Returned, A = Accepted; N = line not yet received at the dataset cut-off date,
+          so no return decision exists yet.
+
+          '
+      - name: is_returned
+        data_type: boolean
+      - name: is_received
+        data_type: boolean
+        description: False when the line had not been received yet at the dataset cut-off (return flag N).
+      - name: line_status
+        data_type: varchar
+      - name: ship_date
+        data_type: date
+      - name: commit_date
+        data_type: date
+      - name: receipt_date
+        data_type: date
+        data_tests:
+          - not_before:
+              arguments:
+                column: ship_date
+      - name: is_late_delivery
+        data_type: boolean
+        description: True when the line was received after the date committed to the customer.
+      - name: delivery_delay_days
+        data_type: number(38,0)
+        description: receipt_date - commit_date. Positive = late, negative = early.
+      - name: transit_days
+        data_type: number(38,0)
+        description: receipt_date - ship_date.
+      - name: ship_mode
+        data_type: varchar
+      - name: ship_instruction
+        data_type: varchar
+      - name: _loaded_at
+        data_type: timestamp_ntz
+        description: Timestamp the source row was landed in Bronze (used to pick the latest version when deduplicating).
+    config:
+      contract:
+        enforced: true

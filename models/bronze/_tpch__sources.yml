@@ -1,0 +1,83 @@
+version: 2
+
+sources:
+  - name: tpch
+    description: 'TPC-H benchmark at scale factor 1, shared by Snowflake as read-only sample data. It models a wholesale supplier:
+      customers place orders, each order has line items, and each line item is a part bought from a supplier.
+
+      '
+    database: SNOWFLAKE_SAMPLE_DATA
+    schema: TPCH_SF1
+    tables:
+      - name: customer
+        description: Customers (~150k rows).
+        columns:
+          - name: c_custkey
+            data_tests:
+              - not_null
+          - name: c_nationkey
+            data_tests:
+              - not_null
+      - name: orders
+        description: Order headers (~1.5M rows).
+        columns:
+          - name: o_orderkey
+            data_tests:
+              - not_null
+          - name: o_custkey
+            data_tests:
+              - not_null
+      - name: lineitem
+        description: Order lines, the most granular table (~6M rows).
+        columns:
+          - name: l_orderkey
+            data_tests:
+              - not_null
+          - name: l_linenumber
+            data_tests:
+              - not_null
+          - name: l_partkey
+            data_tests:
+              - not_null
+          - name: l_suppkey
+            data_tests:
+              - not_null
+      - name: part
+        description: Parts / products (~200k rows).
+        columns:
+          - name: p_partkey
+            data_tests:
+              - not_null
+      - name: supplier
+        description: Suppliers (~10k rows).
+        columns:
+          - name: s_suppkey
+            data_tests:
+              - not_null
+          - name: s_nationkey
+            data_tests:
+              - not_null
+      - name: partsupp
+        description: Which supplier sells which part, with stock and supply cost (~800k rows).
+        columns:
+          - name: ps_partkey
+            data_tests:
+              - not_null
+          - name: ps_suppkey
+            data_tests:
+              - not_null
+      - name: nation
+        description: 25 nations.
+        columns:
+          - name: n_nationkey
+            data_tests:
+              - not_null
+          - name: n_regionkey
+            data_tests:
+              - not_null
+      - name: region
+        description: 5 regions.
+        columns:
+          - name: r_regionkey
+            data_tests:
+              - not_null

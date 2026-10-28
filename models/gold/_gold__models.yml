@@ -1,0 +1,299 @@
+version: 2
+
+# Gold = consumption-ready star schema for commercial performance.
+# Contracts are enforced (see dbt_project.yml): column names and data types
+# below are a promise to BI consumers, and the build fails if a model breaks it.
+
+models:
+  - name: dim_date
+    description: Calendar dimension (one row per day). Role-playing for order, ship, commit and receipt dates.
+    columns:
+      - name: date_key
+        data_type: varchar
+        description: Date key as string in YYYYMMDD format (sorts chronologically).
+        data_tests:
+          - unique
+          - not_null
+      - name: date_day
+        data_type: date
+        description: Calendar date.
+        data_tests:
+          - unique
+          - not_null
+      - name: year_number
+        data_type: number(38,0)
+      - name: quarter_number
+        data_type: number(38,0)
+      - name: year_quarter
+        data_type: varchar
+        description: e.g. 1995-Q2.
+      - name: month_number
+        data_type: number(38,0)
+      - name: month_name
+        data_type: varchar
+      - name: year_month
+        data_type: varchar
+        description: e.g. 1995-06.
+      - name: month_start_date
+        data_type: date
+        description: First day of the month, useful for time-series axes.
+      - name: iso_week_number
+        data_type: number(38,0)
+      - name: day_of_week_number
+        data_type: number(38,0)
+        description: 'ISO: 1 = Monday ... 7 = Sunday.'
+      - name: day_name
+        data_type: varchar
+      - name: is_weekend
+        data_type: boolean
+  - name: dim_customer
+    description: Customer dimension, denormalised with nation and region. Street address excluded (PII).
+    columns:
+      - name: customer_sk
+        data_type: varchar
+        description: Surrogate key (hash of customer_id).
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        data_type: varchar
+        description: Business key from the source system.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_name
+        data_type: varchar
+      - name: market_segment
+        data_type: varchar
+        description: 'Commercial segment: Automobile, Building, Furniture, Household, Machinery.'
+        data_tests:
+          - not_null
+      - name: nation_name
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: region_name
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: phone_country_code
+        data_type: number(38,0)
+      - name: account_balance
+        data_type: number(12,2)
+        description: Account balance; negative = customer owes money.
+      - name: account_balance_band
+        data_type: varchar
+        description: Balance bucket, prefixed with a number so it sorts correctly in BI tools.
+      - name: has_negative_balance
+        data_type: boolean
+  - name: dim_supplier
+    description: Supplier dimension, denormalised with nation and region.
+    columns:
+      - name: supplier_sk
+        data_type: varchar
+        description: Surrogate key (hash of supplier_id).
+        data_tests:
+          - unique
+          - not_null
+      - name: supplier_id
+        data_type: varchar
+        description: Business key from the source system.
+        data_tests:
+          - unique
+          - not_null
+      - name: supplier_name
+        data_type: varchar
+      - name: nation_name
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: region_name
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: account_balance
+        data_type: number(12,2)
+      - name: has_negative_balance
+        data_type: boolean
+  - name: dim_part
+    description: Part (product) dimension with the TPC-H type and container split into atomic attributes.
+    columns:
+      - name: part_sk
+        data_type: varchar
+        description: Surrogate key (hash of part_id).
+        data_tests:
+          - unique
+          - not_null
+      - name: part_id
+        data_type: varchar
+        description: Business key from the source system.
+        data_tests:
+          - unique
+          - not_null
+      - name: part_name
+        data_type: varchar
+      - name: manufacturer
+        data_type: varchar
+      - name: brand
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: part_type
+        data_type: varchar
+        description: Full type description, e.g. Standard Polished Tin.
+      - name: part_class
+        data_type: varchar
+      - name: part_finish
+        data_type: varchar
+      - name: part_material
+        data_type: varchar
+      - name: part_size
+        data_type: number(38,0)
+      - name: container
+        data_type: varchar
+      - name: container_size
+        data_type: varchar
+      - name: container_type
+        data_type: varchar
+      - name: retail_price
+        data_type: number(12,2)
+        description: List price per unit.
+  - name: fct_order_lines
+    description: 'Commercial performance fact. Grain: one row per order line. Additive measures can be summed across any dimension;
+      rates and per-unit values must be averaged.'
+    data_tests:
+      - sum_matches:
+          arguments:
+            column: net_revenue
+            compare_model: ref('slv_lineitem')
+            compare_column: net_amount
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('slv_lineitem')
+    columns:
+      - name: order_line_sk
+        data_type: varchar
+        description: Surrogate key (hash of order_id + line_number).
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_sk
+        data_type: varchar
+        description: FK to dim_customer.
+        data_tests:
+          - not_null
+      - name: part_sk
+        data_type: varchar
+        description: FK to dim_part.
+        data_tests:
+          - not_null
+      - name: supplier_sk
+        data_type: varchar
+        description: FK to dim_supplier.
+        data_tests:
+          - not_null
+      - name: order_date_key
+        data_type: varchar
+        description: FK to dim_date (date the order was placed).
+        data_tests:
+          - not_null
+      - name: ship_date_key
+        data_type: varchar
+        description: FK to dim_date (date the line was shipped).
+        data_tests:
+          - not_null
+          - not_before:
+              arguments:
+                column: order_date_key
+      - name: commit_date_key
+        data_type: varchar
+        description: FK to dim_date (delivery date promised to the customer).
+        data_tests:
+          - not_null
+      - name: receipt_date_key
+        data_type: varchar
+        description: FK to dim_date (date the customer received the line).
+        data_tests:
+          - not_null
+          - not_before:
+              arguments:
+                column: ship_date_key
+      - name: order_id
+        data_type: varchar
+        description: 'Degenerate dimension: order number.'
+        data_tests:
+          - not_null
+      - name: line_number
+        data_type: number(38,0)
+        description: 'Degenerate dimension: line within the order.'
+        data_tests:
+          - not_null
+      - name: order_status
+        data_type: varchar
+        description: Degenerate dimension from the order header.
+      - name: order_priority
+        data_type: varchar
+        description: Degenerate dimension from the order header.
+      - name: order_priority_rank
+        data_type: number(38,0)
+        description: 1 = Urgent ... 5 = Low.
+      - name: line_status
+        data_type: varchar
+      - name: return_status
+        data_type: varchar
+      - name: ship_mode
+        data_type: varchar
+      - name: quantity
+        data_type: number(12,2)
+        description: Units ordered.
+        data_tests:
+          - is_positive
+      - name: gross_sales_amount
+        data_type: number(14,2)
+        description: Extended price before discount.
+      - name: discount_amount
+        data_type: number(14,2)
+        description: Revenue given away as discount.
+        data_tests:
+          - is_positive:
+              arguments:
+                allow_zero: true
+      - name: net_revenue
+        data_type: number(14,2)
+        description: Revenue after discount, before tax. The main revenue metric.
+        data_tests:
+          - is_positive
+      - name: tax_amount
+        data_type: number(14,2)
+      - name: invoiced_amount
+        data_type: number(14,2)
+        description: Amount charged to the customer (net revenue + tax).
+      - name: supply_cost_amount
+        data_type: number(14,2)
+        description: Quantity x unit supply cost of this part from this supplier.
+      - name: gross_margin
+        data_type: number(14,2)
+        description: net_revenue - supply_cost_amount. Can be negative on heavily discounted lines.
+      - name: discount_rate
+        data_type: number(5,4)
+        description: Non-additive.
+      - name: tax_rate
+        data_type: number(5,4)
+        description: Non-additive.
+      - name: unit_supply_cost
+        data_type: number(12,2)
+        description: Non-additive.
+      - name: delivery_delay_days
+        data_type: number(38,0)
+        description: receipt - commit date. Positive = late. Non-additive.
+      - name: transit_days
+        data_type: number(38,0)
+        description: receipt - ship date. Non-additive.
+      - name: is_received
+        data_type: boolean
+        description: False if the line had not been received at the dataset cut-off.
+      - name: is_late_delivery
+        data_type: boolean
+        description: Received after the promised commit date.
+      - name: is_returned
+        data_type: boolean

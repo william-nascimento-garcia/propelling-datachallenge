@@ -1,0 +1,26 @@
+[sqlfluff]
+dialect = snowflake
+templater = dbt
+max_line_length = 120
+# Style rules we enforce; purely cosmetic ones that fight readable alignment are excluded.
+exclude_rules = layout.spacing, layout.cte_newline, structure.column_order, ambiguous.column_count, references.qualification
+large_file_skip_byte_limit = 40000
+
+[sqlfluff:templater:dbt]
+project_dir = .
+profiles_dir = .
+
+[sqlfluff:indentation]
+tab_space_size = 4
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.types]
+extended_capitalisation_policy = lower

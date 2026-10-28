@@ -1,0 +1,45 @@
+# dbt looks for profiles.yml in the project folder first, so this file is used
+# automatically. It contains NO secrets: every credential comes from an
+# environment variable (see scripts/set_env.example.ps1 and the GitHub secrets).
+# Auth is key-pair: SNOWFLAKE_PRIVATE_KEY_PATH points to the .p8 private key
+# (locally a file outside the repo; in GitHub Actions it is written from a secret).
+#
+# Targets
+#   dev  -> your personal sandbox: DEV_<NAME>_BRONZE / _SILVER / _GOLD
+#   ci   -> one isolated sandbox per pull request: CI_PR_<n>_BRONZE / ...
+#   prod -> the "real" schemas: BRONZE / SILVER / GOLD
+tpch_medallion:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: TRANSFORMER
+      warehouse: WH_TRANSFORM
+      database: TPCH_ANALYTICS
+      schema: "DEV_{{ env_var('DBT_DEV_NAME', 'WILLIAM') | upper }}"
+      threads: 8
+
+    ci:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: TRANSFORMER
+      warehouse: WH_TRANSFORM
+      database: TPCH_ANALYTICS
+      schema: "{{ env_var('DBT_CI_SCHEMA', 'CI_LOCAL') }}"
+      threads: 8
+
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: TRANSFORMER
+      warehouse: WH_TRANSFORM
+      database: TPCH_ANALYTICS
+      schema: PUBLIC
+      threads: 8

@@ -1,0 +1,79 @@
+# Continuous Deployment: runs when a PR is merged into main, on demand,
+# and once a day (acts as a minimal orchestrator for this project).
+#
+#  1. Build + test the whole project in production (BRONZE / SILVER / GOLD)
+#  2. Generate dbt docs and publish them to GitHub Pages (navigable lineage)
+#  3. Store manifest.json so the next CI run can compare state (slim CI)
+name: dbt CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"   # daily, 05:17 UTC
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+  SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+  SNOWFLAKE_PRIVATE_KEY_PATH: ${{ github.workspace }}/../snowflake_key.p8
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          dbt deps
+
+      - name: Write Snowflake private key
+        env:
+          PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$PRIVATE_KEY" > "$SNOWFLAKE_PRIVATE_KEY_PATH"
+          chmod 600 "$SNOWFLAKE_PRIVATE_KEY_PATH"
+
+      - name: dbt build (production)
+        run: dbt build --target prod
+
+      - name: Generate docs
+        run: |
+          dbt docs generate --target prod --static
+          mkdir -p site
+          cp target/static_index.html site/index.html
+
+      - name: Save production manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-manifest
+          path: target/manifest.json
+          retention-days: 90
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish docs to GitHub Pages
+        id: pages
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,11 @@
+# dbt project (local + GitHub Actions CI/CD)
+dbt-core~=1.11.0
+dbt-snowflake~=1.11.6
+sqlfluff~=4.4
+sqlfluff-templater-dbt~=4.4
+
+# Python analysis: _modules (SnowflakeClient, cripto) and analysis/ scripts
+# (snowflake-connector-python and cryptography come with dbt-snowflake)
+pandas~=3.1
+cryptocode~=0.1
+ipykernel~=7.4

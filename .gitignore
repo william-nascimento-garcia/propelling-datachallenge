@@ -1,0 +1,35 @@
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+package-lock.yml.bak
+
+# Python
+.venv/
+venv/
+__pycache__/
+
+# Secrets - never commit
+*.p8
+*.pem
+*.key
+.env
+set_env.ps1
+
+# OS / editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/settings.json
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Attachments saved by the Claude desktop app
+Claude outputs/
+
+# Encrypted credentials + key (only the README is versioned)
+_credentials/*
+!_credentials/README.md
+!_credentials/generate_credentials.py

@@ -1,0 +1,135 @@
+version: 2
+
+# Bronze = raw landing zone. Source columns are kept with their original names
+# and types; only technical metadata columns (prefixed with "_") are added.
+#
+# No unique tests here on purpose: Bronze is a faithful copy, so duplicates sent
+# by the source are allowed to land and are removed in Silver (macros/deduplicate.sql).
+# The remaining tests (not_null keys, row count) run with severity WARN
+# (dbt_project.yml): they report source quality but never block the pipeline.
+
+models:
+  - name: brz_customer
+    description: Raw copy of TPCH_SF1.CUSTOMER plus load metadata.
+    columns:
+      - name: c_custkey
+        data_tests:
+          - not_null
+      - name: c_nationkey
+        data_tests:
+          - not_null
+      - name: _loaded_at
+        description: Timestamp when this row was landed in Bronze.
+      - name: _batch_id
+        description: dbt invocation_id of the run that landed the row (audit trail).
+      - name: _source_relation
+        description: Fully qualified source table the row came from.
+  - name: brz_orders
+    description: Raw copy of TPCH_SF1.ORDERS plus load metadata.
+    columns:
+      - name: o_orderkey
+        data_tests:
+          - not_null
+      - name: o_custkey
+        data_tests:
+          - not_null
+      - name: _loaded_at
+        description: Timestamp when this row was landed in Bronze.
+      - name: _batch_id
+        description: dbt invocation_id of the run that landed the row (audit trail).
+      - name: _source_relation
+        description: Fully qualified source table the row came from.
+  - name: brz_lineitem
+    description: Raw copy of TPCH_SF1.LINEITEM plus load metadata.
+    data_tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: source('tpch', 'lineitem')
+    columns:
+      - name: l_orderkey
+        data_tests:
+          - not_null
+      - name: l_linenumber
+        data_tests:
+          - not_null
+      - name: l_partkey
+        data_tests:
+          - not_null
+      - name: l_suppkey
+        data_tests:
+          - not_null
+      - name: _loaded_at
+        description: Timestamp when this row was landed in Bronze.
+      - name: _batch_id
+        description: dbt invocation_id of the run that landed the row (audit trail).
+      - name: _source_relation
+        description: Fully qualified source table the row came from.
+  - name: brz_part
+    description: Raw copy of TPCH_SF1.PART plus load metadata.
+    columns:
+      - name: p_partkey
+        data_tests:
+          - not_null
+      - name: _loaded_at
+        description: Timestamp when this row was landed in Bronze.
+      - name: _batch_id
+        description: dbt invocation_id of the run that landed the row (audit trail).
+      - name: _source_relation
+        description: Fully qualified source table the row came from.
+  - name: brz_supplier
+    description: Raw copy of TPCH_SF1.SUPPLIER plus load metadata.
+    columns:
+      - name: s_suppkey
+        data_tests:
+          - not_null
+      - name: s_nationkey
+        data_tests:
+          - not_null
+      - name: _loaded_at
+        description: Timestamp when this row was landed in Bronze.
+      - name: _batch_id
+        description: dbt invocation_id of the run that landed the row (audit trail).
+      - name: _source_relation
+        description: Fully qualified source table the row came from.
+  - name: brz_partsupp
+    description: Raw copy of TPCH_SF1.PARTSUPP plus load metadata.
+    columns:
+      - name: ps_partkey
+        data_tests:
+          - not_null
+      - name: ps_suppkey
+        data_tests:
+          - not_null
+      - name: _loaded_at
+        description: Timestamp when this row was landed in Bronze.
+      - name: _batch_id
+        description: dbt invocation_id of the run that landed the row (audit trail).
+      - name: _source_relation
+        description: Fully qualified source table the row came from.
+  - name: brz_nation
+    description: Raw copy of TPCH_SF1.NATION plus load metadata.
+    columns:
+      - name: n_nationkey
+        data_tests:
+          - not_null
+      - name: n_regionkey
+        data_tests:
+          - not_null
+      - name: _loaded_at
+        description: Timestamp when this row was landed in Bronze.
+      - name: _batch_id
+        description: dbt invocation_id of the run that landed the row (audit trail).
+      - name: _source_relation
+        description: Fully qualified source table the row came from.
+  - name: brz_region
+    description: Raw copy of TPCH_SF1.REGION plus load metadata.
+    columns:
+      - name: r_regionkey
+        data_tests:
+          - not_null
+      - name: _loaded_at
+        description: Timestamp when this row was landed in Bronze.
+      - name: _batch_id
+        description: dbt invocation_id of the run that landed the row (audit trail).
+      - name: _source_relation
+        description: Fully qualified source table the row came from.

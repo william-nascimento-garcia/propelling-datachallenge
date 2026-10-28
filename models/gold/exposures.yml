@@ -1,0 +1,40 @@
+version: 2
+
+# Exposures document who consumes the Gold layer. They appear at the end of the
+# dbt lineage graph, closing the story from source table to business decision.
+
+exposures:
+  - name: commercial_performance_dashboard
+    label: Commercial Performance Dashboard
+    type: dashboard
+    maturity: medium
+    description: >
+      Monthly revenue, discount and gross margin by region, market segment and
+      product attributes. Answers: where do we make money, where does discounting
+      erode margin, and how do segments and regions trend over time.
+      Primary users: Commercial Director, Sales & Category Managers.
+    depends_on:
+      - ref('fct_order_lines')
+      - ref('dim_customer')
+      - ref('dim_part')
+      - ref('dim_date')
+    owner:
+      name: William Ordiales
+      email: williamordiales@hotmail.com
+
+  - name: supplier_scorecard
+    label: Supplier Scorecard
+    type: dashboard
+    maturity: medium
+    description: >
+      Late delivery rate, delay in days, return rate and margin per supplier and
+      year. Supports procurement decisions: which suppliers to renegotiate,
+      replace or reward, and how much revenue is exposed to late deliveries.
+      Primary users: Supply Chain / Procurement Manager.
+    depends_on:
+      - ref('fct_order_lines')
+      - ref('dim_supplier')
+      - ref('dim_date')
+    owner:
+      name: William Ordiales
+      email: williamordiales@hotmail.com

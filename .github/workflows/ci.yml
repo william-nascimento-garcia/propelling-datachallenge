@@ -1,0 +1,75 @@
+# Continuous Integration: runs on every pull request to main.
+#
+#  1. Lint SQL (sqlfluff)
+#  2. Slim CI: build + test ONLY the models changed in the PR and everything
+#     downstream of them, in an isolated schema (CI_PR_<n>_*). Unchanged
+#     upstream models are read from production thanks to --defer.
+#  3. Drop the PR schemas, whatever the result.
+name: dbt CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+  SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+  SNOWFLAKE_PRIVATE_KEY_PATH: ${{ github.workspace }}/../snowflake_key.p8
+  DBT_CI_SCHEMA: CI_PR_${{ github.event.pull_request.number }}
+
+jobs:
+  dbt-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          dbt deps
+
+      - name: Write Snowflake private key
+        env:
+          PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          printf '%s\n' "$PRIVATE_KEY" > "$SNOWFLAKE_PRIVATE_KEY_PATH"
+          chmod 600 "$SNOWFLAKE_PRIVATE_KEY_PATH"
+
+      - name: Lint SQL
+        run: sqlfluff lint models tests
+
+      - name: Download production manifest (for state comparison)
+        id: prod_manifest
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: cd.yml
+          branch: main
+          name: prod-manifest
+          path: prod-manifest
+          if_no_artifact_found: warn
+
+      - name: dbt build (slim CI)
+        run: |
+          if [ -f prod-manifest/manifest.json ]; then
+            echo "Production manifest found -> building modified models and their children only"
+            dbt build --target ci --select state:modified+ --defer --state prod-manifest
+          else
+            echo "No production manifest yet -> full build"
+            dbt build --target ci
+          fi
+
+      - name: Drop CI schemas
+        if: always()
+        run: |
+          dbt run-operation drop_schemas_with_prefix --target ci --args "{prefix: ${DBT_CI_SCHEMA}}"
