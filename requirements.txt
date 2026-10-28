@@ -7,5 +7,6 @@ sqlfluff-templater-dbt~=4.4
 # Python analysis: _modules (SnowflakeClient, cripto) and analysis/ scripts
 # (snowflake-connector-python and cryptography come with dbt-snowflake)
 pandas~=3.1
+matplotlib~=3.11
 cryptocode~=0.1
 ipykernel~=7.4

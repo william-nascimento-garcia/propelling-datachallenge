@@ -23,14 +23,14 @@ $tmp = Join-Path $keyDir "tmp_rsa.pem"
 Remove-Item $tmp
 & $openssl rsa -in $private -pubout -out $public
 
-# Single-line public key, ready to paste into setup/01_snowflake_setup.sql
+# Single-line public key, ready to paste into _snowflake_setup/01_snowflake_setup.sql
 $pubOneLine = (Get-Content $public | Where-Object { $_ -notmatch "-----" }) -join ""
 
 Write-Host ""
 Write-Host "Private key : $private   (never commit / share this file)"
 Write-Host "Public key  : $public"
 Write-Host ""
-Write-Host "Paste this value into RSA_PUBLIC_KEY in setup/01_snowflake_setup.sql:" -ForegroundColor Cyan
+Write-Host "Paste this value into RSA_PUBLIC_KEY in _snowflake_setup/01_snowflake_setup.sql:" -ForegroundColor Cyan
 Write-Host $pubOneLine
 Set-Clipboard -Value $pubOneLine
 Write-Host "(copied to clipboard)" -ForegroundColor DarkGray

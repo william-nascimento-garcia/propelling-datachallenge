@@ -1,7 +1,7 @@
-# Copy this file to scripts\set_env.ps1 (ignored by git), fill in your values,
+# Copy this file to _local_setup\set_env.ps1 (ignored by git), fill in your values,
 # then load it in every new terminal before running dbt:
 #
-#     . .\scripts\set_env.ps1
+#     . .\_local_setup\set_env.ps1
 #
 # SNOWFLAKE_ACCOUNT is the account identifier, format <orgname>-<accountname>.
 # Find it in Snowsight: bottom-left menu (your name) > Account > "View account details".
