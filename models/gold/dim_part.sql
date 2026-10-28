@@ -17,3 +17,4 @@ select
     container_type::varchar         as container_type,
     retail_price::number(12, 2)     as retail_price
 from {{ ref('slv_part') }}
+-- CI pipeline test
