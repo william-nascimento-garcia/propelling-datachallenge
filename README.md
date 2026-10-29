@@ -192,7 +192,7 @@ sf.close()
 | `_modules/snowflake_client.py` | `SnowflakeClient`: connects with key-pair auth, picks the layer and environment (`dev` / `prod`), runs queries and converts results to pandas |
 | `_modules/cripto.py` | `Encryptor`: encrypts and decrypts the credentials file (AES-GCM via `cryptocode`) |
 | `_credentials/` | Encrypted credentials (`snowflake.json`) and key (`snowflake.key`), both **git-ignored**. Create them with `_credentials/generate_credentials.py` |
-| `analysis/` | Analysis scripts: data profiling per layer (`bronze/`), dbt run history (`audit/`) and charts |
+| `analysis/` | Analysis scripts: data profiling per layer and Bronze vs source price validation of the duplication (`bronze/`), dbt run history (`audit/`) and Gold charts (`gold_analytics.py`, saved in `charts/`) |
 
 ---
 

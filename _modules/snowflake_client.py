@@ -1,38 +1,3 @@
-"""
-Snowflake client for exploring the Medallion layers from Python / Jupyter.
-
-Credentials
------------
-Same layout as the IMC data platform: the credentials live ENCRYPTED in the
-project's _credentials/ folder (git-ignored) and are decrypted with
-_modules/cripto.py:
-
-    _credentials/snowflake.json   account, user, private key (PEM), encrypted
-    _credentials/snowflake.key    decryption key
-
-Create them with:  python scripts/encrypt_credentials.py
-Other locations can be set with SNOWFLAKE_CREDENTIALS_FILE / SNOWFLAKE_CRYPTO_KEY_FILE.
-
-Usage
------
-    from _modules import SnowflakeClient
-
-    sf = SnowflakeClient(target="dev", layer="bronze").connect()
-    sf.set_layer("gold", target="dev")         # -> DEV_WILLIAM_GOLD
-    result = sf.query("select * from fct_order_lines limit 10")
-    df = sf.to_pandas(result)
-
-    # Placeholders {bronze} {silver} {gold} are replaced by the schema of the
-    # current target, so cross-layer queries work in dev and prod alike:
-    sf.query("select count(*) from {silver}.slv_lineitem")
-
-    # The dbt run log lives in the shared AUDIT schema (same in dev and prod):
-    sf.set_layer("audit")
-    sf.query("select * from dbt_run_results")      # or "{audit}.dbt_run_results"
-
-    sf.close()
-"""
-
 from __future__ import annotations
 
 import os
@@ -46,7 +11,10 @@ import pandas as pd
 import snowflake.connector
 from cryptography.hazmat.primitives import serialization
 from snowflake.connector import SnowflakeConnection
-from cripto import Encryptor
+try:  # works both as "from _modules import ..." and with _modules on sys.path
+    from .cripto import Encryptor
+except ImportError:
+    from cripto import Encryptor
 
 LAYERS = ("bronze", "silver", "gold")
 # Schemas outside the medallion layers: same name in every target.
