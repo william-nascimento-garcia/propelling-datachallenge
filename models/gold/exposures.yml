@@ -38,3 +38,24 @@ exposures:
     owner:
       name: William Ordiales
       email: williamordiales@hotmail.com
+
+  - name: gold_analytics_charts
+    label: Gold Analytics (charts)
+    type: analysis
+    maturity: high
+    url: https://github.com/william-nascimento-garcia/propelling-datachallenge/blob/main/analysis/gold_analytics.py
+    description: >
+      Python / pandas analysis (analysis/gold_analytics.py) that queries the Gold
+      layer through _modules/snowflake_client.py and produces the analysis charts
+      (analysis/charts/): revenue and margin trend, revenue by region, margin by
+      discount level, top brands, supplier late-delivery distribution, revenue
+      delivered late and customer concentration.
+    depends_on:
+      - ref('fct_order_lines')
+      - ref('dim_customer')
+      - ref('dim_part')
+      - ref('dim_supplier')
+      - ref('dim_date')
+    owner:
+      name: William Ordiales
+      email: williamordiales@hotmail.com

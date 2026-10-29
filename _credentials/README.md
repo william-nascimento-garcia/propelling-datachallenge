@@ -1,7 +1,7 @@
 # _credentials
 
 Local, **git-ignored** folder with the encrypted Snowflake credentials used by
-`_modules/snowflake_client.py` (same layout as the IMC data platform).
+`_modules/snowflake_client.py`.
 
 | File | Content |
 |---|---|
